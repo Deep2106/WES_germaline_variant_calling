@@ -1,0 +1,162 @@
+/*
+========================================================================================
+    DEEPVARIANT MODULE
+========================================================================================
+    Neural network-based variant caller
+
+    IMPORTANT:
+    - Uses MarkDuplicates BAM (NOT BQSR-recalibrated)
+    - DeepVariant performs better without BQSR as it learns its own base quality model
+    - Uses CHROMOSOME-LEVEL regions to skip alt/unplaced contigs (major speedup)
+    - Output is filtered to target regions in a downstream step
+
+    SEX-AWARE CALLING:
+    - Males (sex=1): --haploid_contigs chrX,chrY --par_regions_bed (created inline)
+    - Females (sex=2): no haploid flags, standard diploid calling
+    - PAR regions remain diploid even for males
+
+    PERFORMANCE:
+    - Chromosome-level --regions to skip hundreds of alt/unplaced contigs
+    - Intermediate files written to LOCAL SSD scratch (not NFS)
+    - PAR BED created in LOCAL_SCRATCH with absolute path (avoids Singularity permission issues)
+    - Cleanup of intermediate files after completion
+----------------------------------------------------------------------------------------
+*/
+
+process DEEPVARIANT {
+    tag "${meta.id}"
+    label 'process_high'
+
+    container "${params.containers.deepvariant}"
+
+    publishDir "${params.outdir}/variants/deepvariant", mode: params.publish_dir_mode, failOnError: false
+
+    input:
+    tuple val(meta), path(bam), path(bai)
+    path fasta
+    path fasta_fai
+
+    output:
+    tuple val(meta), path("*.dv.vcf.gz"), path("*.dv.vcf.gz.tbi"), emit: vcf
+    tuple val(meta), path("*.dv.g.vcf.gz"), path("*.dv.g.vcf.gz.tbi"), emit: gvcf
+    path "versions.yml", emit: versions
+
+    script:
+    def prefix     = "${meta.id}"
+    def model_type = params.deepvariant_model ?: 'WES'
+    def is_male    = meta.sex == '1' || meta.sex == 1
+    """
+    #!/bin/bash
+    set -euo pipefail
+
+    echo "=============================================="
+    echo "DeepVariant - ${prefix}"
+    echo "=============================================="
+    echo "Model type: ${model_type}"
+    echo "Input BAM: ${bam}"
+    echo "Sex: ${meta.sex} (${is_male ? 'MALE - haploid chrX/Y' : 'FEMALE - diploid'})"
+    echo "CPUs/shards: ${task.cpus}"
+
+    # =========================================================================
+    # REGIONS: Extract standard chromosomes from fasta index
+    # Skips hundreds of alt contigs, unplaced scaffolds, decoys
+    # This gives DV ~25 large regions instead of scanning everything
+    # =========================================================================
+    cut -f1,2 ${fasta_fai} | awk '{print \$1"\\t0\\t"\$2}' | \\
+    grep -E "^chr[0-9]|^chrX|^chrY|^chrM" > chrom_regions.bed
+
+    echo "Chromosome regions: \$(wc -l < chrom_regions.bed) standard chromosomes"
+    echo "Skipping alt contigs and unplaced scaffolds"
+    cat chrom_regions.bed
+
+    # =========================================================================
+    # PERFORMANCE: Set up LOCAL SSD scratch for intermediate files
+    # This MUST come before PAR BED creation so we can write PAR BED here
+    # =========================================================================
+
+    if [ -n "\${SLURM_JOB_ID:-}" ] && [ -d "/local/scratch/\${SLURM_JOB_ID}" ]; then
+        LOCAL_SCRATCH="/local/scratch/\${SLURM_JOB_ID}/dv_${prefix}"
+        echo "Using SLURM local scratch: \${LOCAL_SCRATCH}"
+    elif [ -n "\${TMPDIR:-}" ] && [ -d "\${TMPDIR}" ] && [ -w "\${TMPDIR}" ]; then
+        LOCAL_SCRATCH="\${TMPDIR}/dv_${prefix}"
+        echo "Using TMPDIR: \${LOCAL_SCRATCH}"
+    else
+        LOCAL_SCRATCH="\${PWD}/dv_intermediate_${prefix}"
+        echo "WARNING: No local scratch available, using work dir (slower)"
+    fi
+
+    mkdir -p \${LOCAL_SCRATCH}
+    trap "echo 'Cleaning up intermediate files...'; rm -rf \${LOCAL_SCRATCH}" EXIT
+
+    echo ""
+    echo "Local scratch space:"
+    df -h \${LOCAL_SCRATCH} 2>/dev/null || df -h .
+
+    # =========================================================================
+    # SEX-AWARE: Create PAR BED in LOCAL_SCRATCH for males
+    # GRCh38 PAR regions — keeps these diploid while chrX/Y are haploid
+    # Written to local scratch with absolute path so parallel make_examples
+    # workers can access it regardless of their working directory
+    # =========================================================================
+    HAPLOID_ARGS=""
+    if [ "${is_male}" = "true" ]; then
+        cat > \${LOCAL_SCRATCH}/par_regions.bed <<'EOF'
+chrX	10000	2781479	PAR1
+chrX	155701382	156030895	PAR2
+EOF
+        chmod 644 \${LOCAL_SCRATCH}/par_regions.bed
+        HAPLOID_ARGS="--haploid_contigs chrX,chrY --par_regions_bed \${LOCAL_SCRATCH}/par_regions.bed"
+        echo "Sex-aware: haploid chrX/Y with PAR exceptions"
+        echo "PAR BED: \${LOCAL_SCRATCH}/par_regions.bed"
+    else
+        echo "Sex-aware: all diploid (female)"
+    fi
+
+    echo ""
+    echo "Haploid args: \${HAPLOID_ARGS:-NONE (diploid)}"
+    echo "Intermediate files: \${LOCAL_SCRATCH}"
+    echo ""
+
+    # =========================================================================
+    # Run DeepVariant with chromosome-level regions
+    # =========================================================================
+
+    START_TIME=\$(date +%s)
+
+    /opt/deepvariant/bin/run_deepvariant \\
+        --model_type=${model_type} \\
+        --ref=${fasta} \\
+        --reads=${bam} \\
+        --output_vcf=${prefix}.dv.vcf.gz \\
+        --output_gvcf=${prefix}.dv.g.vcf.gz \\
+        --num_shards=${task.cpus} \\
+        --regions chrom_regions.bed \\
+        --intermediate_results_dir=\${LOCAL_SCRATCH} \\
+        \${HAPLOID_ARGS}
+
+    END_TIME=\$(date +%s)
+    ELAPSED=\$((END_TIME - START_TIME))
+
+    echo ""
+    echo "=============================================="
+    echo "DeepVariant Complete"
+    echo "=============================================="
+    echo "Sample: ${prefix}"
+    echo "Sex-aware: ${is_male ? 'YES (haploid chrX/Y)' : 'NO (all diploid)'}"
+    echo "Runtime: \${ELAPSED} seconds (\$((ELAPSED / 60)) minutes)"
+    echo ""
+    echo "Output files:"
+    ls -lh ${prefix}.dv.vcf.gz ${prefix}.dv.g.vcf.gz
+    echo ""
+    echo "Variant count:"
+    zcat ${prefix}.dv.vcf.gz | grep -v '^#' | wc -l
+
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        deepvariant: \$(cat /opt/deepvariant/VERSION 2>/dev/null || echo "1.9.0")
+        sex_aware: ${is_male ? 'haploid_chrXY' : 'diploid'}
+        regions: chrom_level
+        runtime_seconds: \${ELAPSED}
+    END_VERSIONS
+    """
+}

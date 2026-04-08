@@ -1,0 +1,57 @@
+/*
+========================================================================================
+    BCFTOOLS CONCAT MODULE
+========================================================================================
+    Concatenates VCF files (e.g., filtered SNPs + filtered INDELs)
+    Sorts and indexes the output
+    
+    Input:
+        vcfs        - VCF files to concatenate
+        tbis        - VCF index files
+    
+    Output:
+        vcf         - Concatenated VCF
+        tbi         - VCF index
+        versions    - Software versions
+----------------------------------------------------------------------------------------
+*/
+
+process BCFTOOLS_CONCAT {
+    tag "concat"
+    label 'process_low'
+    container "${params.containers.bcftools}"
+    
+    publishDir "${params.outdir}/variants/filtered", mode: params.publish_dir_mode, failOnError: false
+    
+    input:
+    path vcfs
+    path tbis
+    
+    output:
+    path "filtered.vcf.gz"     , emit: vcf
+    path "filtered.vcf.gz.tbi" , emit: tbi
+    path "versions.yml"        , emit: versions
+    
+    script:
+    """
+    echo "=============================================="
+    echo "BCFtools Concat"
+    echo "=============================================="
+    echo "Input VCFs:"
+    ls -la *.vcf.gz
+    
+    # Concatenate and sort VCFs
+    bcftools concat -a ${vcfs} | bcftools sort -Oz -o filtered.vcf.gz
+    tabix -p vcf filtered.vcf.gz
+    
+    # Count variants
+    VARIANT_COUNT=\$(zcat filtered.vcf.gz | grep -v "^#" | wc -l)
+    echo "Total variants in filtered VCF: \${VARIANT_COUNT}"
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        bcftools: \$(bcftools --version | head -1 | sed 's/bcftools //')
+        variant_count: \${VARIANT_COUNT}
+    END_VERSIONS
+    """
+}

@@ -1,0 +1,118 @@
+/*
+    BASE CONFIGURATION
+    Default process settings and resource labels
+*/
+
+process {
+    
+    // Error handling
+    errorStrategy = { task.exitStatus in [143,137,104,134,139,140] ? 'retry' : 'finish' }
+    maxRetries = 2
+    maxErrors = '-1'
+    
+    // Default resources
+    cpus = 1
+    memory = 4.GB
+    time = 4.h
+    
+    // Resource labels
+    withLabel: 'process_low' {
+        cpus = { check_max(2, 'cpus') }
+        memory = { check_max(4.GB * task.attempt, 'memory') }
+        time = { check_max(4.h * task.attempt, 'time') }
+    }
+    
+    withLabel: 'process_medium' {
+        cpus = { check_max(4, 'cpus') }
+        memory = { check_max(16.GB * task.attempt, 'memory') }
+        time = { check_max(8.h * task.attempt, 'time') }
+    }
+    
+    withLabel: 'process_high' {
+        cpus = { check_max(8, 'cpus') }
+        memory = { check_max(32.GB * task.attempt, 'memory') }
+        time = { check_max(24.h * task.attempt, 'time') }
+    }
+    
+    withLabel: 'process_spliceai' {
+    cpus   = 1
+    memory = 16.GB
+    time   = 48.h
+   }
+    // Process-specific resources
+    withName: 'BWAMEM2_MEM' {
+        cpus = { check_max(params.bwa_cpus, 'cpus') }
+        memory = { check_max(params.bwa_memory, 'memory') }
+        time = { check_max(24.h * task.attempt, 'time') }
+    }
+    
+    withName: 'GATK_MARKDUPLICATES' {
+        cpus = { check_max(params.markdup_cpus, 'cpus') }
+        memory = { check_max(params.markdup_memory, 'memory') }
+    }
+    
+    withName: 'GATK_BASERECALIBRATOR|GATK_APPLYBQSR' {
+        cpus = { check_max(params.bqsr_cpus, 'cpus') }
+        memory = { check_max(params.bqsr_memory, 'memory') }
+    }
+    
+    withName: 'GATK_HAPLOTYPECALLER' {
+        cpus = { check_max(params.haplotypecaller_cpus, 'cpus') }
+        memory = { check_max(params.haplotypecaller_memory, 'memory') }
+        time = { check_max(48.h * task.attempt, 'time') }
+    }
+    
+    withName: 'DEEPVARIANT' {
+        cpus = { check_max(params.deepvariant_cpus, 'cpus') }
+        memory = { check_max(params.deepvariant_memory, 'memory') }
+        time = { check_max(48.h * task.attempt, 'time') }
+    }
+    
+    withName: 'GATK_GENOMICSDBIMPORT' {
+        cpus = { check_max(params.genomicsdbimport_cpus, 'cpus') }
+        memory = { check_max(params.genomicsdbimport_memory, 'memory') }
+        time = { check_max(72.h * task.attempt, 'time') }
+    }
+    
+    withName: 'GATK_GENOTYPEGVCFS' {
+        cpus = { check_max(params.genotypegvcfs_cpus, 'cpus') }
+        memory = { check_max(params.genotypegvcfs_memory, 'memory') }
+        time = { check_max(72.h * task.attempt, 'time') }
+    }
+    
+    withName: 'GLNEXUS' {
+        cpus = { check_max(params.glnexus_cpus, 'cpus') }
+        memory = { check_max(params.glnexus_memory, 'memory') }
+        time = { check_max(24.h * task.attempt, 'time') }
+    }
+    
+    withName: 'ANNOVAR' {
+        cpus = { check_max(params.annovar_cpus, 'cpus') }
+        memory = { check_max(params.annovar_memory, 'memory') }
+        time = { check_max(12.h * task.attempt, 'time') }
+    }
+
+    withName: 'SPLIT_VCF_BY_CHROM' {
+        container = "${params.containers.bcftools}"
+        cpus   = 2
+        memory = 8.GB
+        time   = 1.h
+    }
+
+    withName: 'SPLICEAI' {
+        container = "${params.containers.spliceai}"
+        cpus   = 1
+        memory = 16.GB
+        time   = 96.h
+    // Fix for missing 'ps' in Debian Buster container
+    // Remove this line once you rebuild the container with procps
+    // containerOptions = '--bind /usr/bin/ps:/usr/bin/ps --bind /lib64:/lib64:ro --bind /proc:/proc'
+    }
+
+    withName: 'MERGE_SPLICEAI_VCFS' {
+        container = "${params.containers.bcftools}"
+        cpus   = 2
+        memory = 16.GB
+        time   = 8.h
+    }
+}

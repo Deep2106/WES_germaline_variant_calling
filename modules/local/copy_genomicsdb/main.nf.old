@@ -1,0 +1,75 @@
+/*
+========================================================================================
+    COPY GENOMICSDB MODULE
+========================================================================================
+    Copy GenomicsDB from work directory to persistent storage location
+    This ensures the database is preserved for incremental updates
+    
+    Input:
+        genomicsdb      - GenomicsDB workspace from work directory
+        output_path     - Destination path for persistent storage
+    
+    Output:
+        genomicsdb_path - Path to copied GenomicsDB
+        versions        - Software versions
+----------------------------------------------------------------------------------------
+*/
+
+process COPY_GENOMICSDB {
+    tag "copy_genomicsdb"
+    label 'process_medium'
+    
+    // No container needed - just filesystem operations
+    // But using python container for safety
+    container "${params.containers.python}"
+    
+    input:
+    path genomicsdb
+    val output_path
+    
+    output:
+    path "genomicsdb_path.txt", emit: path_file
+    path "versions.yml"       , emit: versions
+    
+    script:
+    """
+    # Ensure output directory exists
+    mkdir -p \$(dirname ${output_path})
+    
+    # Remove existing if present (will be replaced)
+    if [ -d "${output_path}" ]; then
+        echo "Removing existing GenomicsDB at ${output_path}"
+        rm -rf ${output_path}
+    fi
+    
+    # Copy GenomicsDB to persistent location
+    echo "Copying GenomicsDB to ${output_path}..."
+    cp -r ${genomicsdb} ${output_path}
+    
+    # Verify copy
+    if [ -d "${output_path}" ]; then
+        echo "GenomicsDB successfully copied to ${output_path}"
+        echo "${output_path}" > genomicsdb_path.txt
+    else
+        echo "ERROR: Failed to copy GenomicsDB" >&2
+        exit 1
+    fi
+    
+    # Generate versions
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        note: "GenomicsDB copied to persistent storage"
+        destination: "${output_path}"
+    END_VERSIONS
+    """
+    
+    stub:
+    """
+    echo "${output_path}" > genomicsdb_path.txt
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        note: "stub mode"
+    END_VERSIONS
+    """
+}

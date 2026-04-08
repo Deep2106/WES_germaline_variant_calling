@@ -1,0 +1,60 @@
+/*
+    GATK GENOTYPEGVCFS MODULE
+    Joint genotyping from GenomicsDB
+    
+    CRITICAL: Do NOT use --intervals flag here!
+    Using --intervals with GenomicsDB created with --merge-input-intervals true
+    causes severe I/O bottleneck (770x slower due to excessive seek operations)
+    
+    Uses --pedigree for family-aware genotyping and de novo detection
+*/
+
+process GATK_GENOTYPEGVCFS {
+    tag "joint_genotyping"
+    label 'process_high'
+    container "${params.containers.gatk4}"
+    
+    publishDir "${params.outdir}/variants/joint", mode: params.publish_dir_mode
+    
+    input:
+    path genomicsdb
+    path fasta
+    path fasta_fai
+    path fasta_dict
+    path dbsnp
+    path dbsnp_tbi
+    path ped
+    
+    output:
+    tuple path("joint.vcf.gz"), path("joint.vcf.gz.tbi"), emit: vcf
+    path "versions.yml", emit: versions
+    
+    script:
+    def ped_arg = ped.name != 'NO_FILE' ? "--pedigree ${ped}" : ""
+    def dbsnp_arg = dbsnp.name != 'NO_FILE' ? "-D ${dbsnp}" : ""
+    def memory_gb = task.memory.toGiga() - 8
+    """
+    export JAVA_OPTS="-Xmx${memory_gb}g -XX:+UseParallelGC -XX:ParallelGCThreads=4"
+    
+    echo "=== JOINT GENOTYPING ==="
+    echo "Processing GenomicsDB: ${genomicsdb}"
+    echo "Using pedigree: ${ped_arg ? 'YES' : 'NO'}"
+    
+    # CRITICAL: NO --intervals flag here!
+    # Sequential scan is much faster than interval-by-interval processing
+    gatk --java-options "\${JAVA_OPTS}" GenotypeGVCFs \\
+        -R ${fasta} \\
+        -V gendb://${genomicsdb} \\
+        -O joint.vcf.gz \\
+        ${dbsnp_arg} \\
+        ${ped_arg} \\
+        --tmp-dir \${TMPDIR:-/tmp}
+    
+    echo "Joint genotyping complete"
+    
+    cat <<-END_VERSIONS > versions.yml
+    "${task.process}":
+        gatk4: \$(gatk --version 2>&1 | head -1 | sed 's/.*GATK v//')
+    END_VERSIONS
+    """
+}
