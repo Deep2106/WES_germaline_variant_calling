@@ -1,5 +1,5 @@
 
-# WES/WGS Germline Variant Calling Pipeline v2.0
+# WES/WGS Germline Variant Calling Pipeline v3.0
 
 ## Quick Start
 
@@ -63,10 +63,9 @@ sbatch run_pipeline.slurm
 
 ```
 results_v2/
-├── annotation/
-│   ├── batch.hg38_multianno.csv    # ← Main output with GT, Caller, DeNovo columns
-│   ├── batch.hg38_multianno.txt
-│   └── batch_variants.vcf.gz        # Batch-filtered VCF
+├── annotation/per_sample/
+│                    ├── sm1.hg38_multianno.csv    # ← Main output with GT, Caller, DeNovo columns
+│                    └── sm1.hg38.avinput        
 ├── variants/
 │   ├── joint/
 │   │   └── joint.vcf.gz             # Joint-called VCF (all samples)
