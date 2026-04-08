@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # WES/WGS Germline Variant Calling Pipeline v2.0
 
 ## Quick Start
@@ -7,8 +7,8 @@
 
 ```bash
 # Copy pipeline to your project directory
-cp -r wes-pipeline /home/data/human_genetics/ONE4ALL/wes_pipeline_v2
-cd /home/data/human_genetics/ONE4ALL/wes_pipeline_v2
+cp -r wes-pipeline /path/to/wes_pipeline_v2
+cd /path/to/wes_pipeline_v2
 ```
 
 ### 2. Prepare Sample CSV
@@ -30,7 +30,6 @@ Edit `run_pipeline.slurm`:
 # Line 24-28: Edit these for each batch
 BATCH_NAME="batch1"
 INPUT_CSV="sample_sheet_batch1.csv"
-RUN_DEEPVARIANT="false"
 ```
 
 ### 4. Run Pipeline
@@ -159,7 +158,7 @@ sbatch run_pipeline.slurm
 
 ## Container Verification
 
-Ensure these containers exist in `/home/data/human_genetics/ONE4ALL/Docker_Images/`:
+Ensure these containers exist in `/path/to/docker_iamges`:
 
 ```
 fastqc_0.12.1.sif
