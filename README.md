@@ -154,7 +154,6 @@ The top of `run_pipeline.slurm` contains all user-configurable settings:
 
 BATCH_NAME="COHORT_BATCH1"        # Batch identifier — used in all output filenames
 INPUT_CSV="batch1_samples.csv"    # Sample sheet for THIS batch only
-RUN_MODE="CREATE"                 # CREATE (first batch) or UPDATE (subsequent batches)
 ```
 
 The script automatically passes all settings to Nextflow and handles:
@@ -174,7 +173,6 @@ The script automatically passes all settings to Nextflow and handles:
 ```bash
 BATCH_NAME="COHORT_BATCH1"
 INPUT_CSV="batch1_samples.csv"
-RUN_MODE="CREATE"
 ```
 
 **3. Submit:**
@@ -206,7 +204,6 @@ Each subsequent batch adds new samples to the existing GenomicsDB and re-genotyp
 ```bash
 BATCH_NAME="COHORT_BATCH2"
 INPUT_CSV="batch2_samples.csv"
-RUN_MODE="UPDATE"
 ```
 
 **3. Submit:**
