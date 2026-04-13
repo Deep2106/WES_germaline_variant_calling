@@ -136,8 +136,7 @@ FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fa
 FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,2,1,0,0
 ```
 
-> **Note:** Trio structure (proband + both parents) is required for de novo variant calling. Duos and singletons are supported but de novo calling will be skipped.
-
+> **Note:** Trio structure (proband + both parents) is required for de novo variant calling. Duos and singletons are supported but de novo calling will be skipped. If Sex information is unavailable 0/-9 accepted but X and Y chromosomes are unrealiable (this is usual case for WGS for cohort level data)
 ---
 
 ## Running the Pipeline
@@ -352,7 +351,8 @@ All parameters are set in `run_pipeline.slurm`. The following are edited per bat
 | `MQRankSum_filter` | `MQRankSum < -12.5` | Mapping quality rank sum |
 | `ReadPosRankSum_filter` | `ReadPosRankSum < -8.0` | Read position rank sum |
 | `QUAL_filter` | `QUAL < 30.0` | Raw call confidence |
-| `SnpCluster` | 3 SNPs within 25bp | Clustered SNP artifact - 25bp window WES-tuned |
+| `SnpCluster` | 3 SNPs within 35bp | Clustered SNP artifact |
+| `cluster-window-size` | 35 Appropriate for WES data | GATK 4+ |
 
 ### INDEL Hard Filters
 
