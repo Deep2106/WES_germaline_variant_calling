@@ -392,10 +392,13 @@ cd /path/to/wes_pipeline_v2
 Create your sample sheet (see `sample_sheet_template.csv` for format):
 
 ```csv
-sample_id,fastq_1,fastq_2,family_id,paternal_id,maternal_id,sex,phenotype
-child1,/path/to/child1_R1.fq.gz,/path/to/child1_R2.fq.gz,FAM001,father1,mother1,male,affected
-father1,/path/to/father1_R1.fq.gz,/path/to/father1_R2.fq.gz,FAM001,0,0,male,unaffected
-mother1,/path/to/mother1_R1.fq.gz,/path/to/mother1_R2.fq.gz,FAM001,0,0,female,unaffected
+sample_id,family_id,fastq_r1,fastq_r2,sex,phenotype,paternal_id,maternal_id
+FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,1,2,FAM01_FATHER,FAM01_MOTHER
+FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,2,2,0,0
+FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,1,1,0,0
+FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,2,2,FAM02_FATHER,FAM02_MOTHER
+FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,1,1,0,0
+FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,2,1,0,0
 ```
 
 ### 3. Edit SLURM Script
