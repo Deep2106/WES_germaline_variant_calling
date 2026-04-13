@@ -127,12 +127,12 @@ The pipeline takes a CSV sample sheet. Each row represents one sample member.
 
 ```csv
 sample_id,family_id,fastq_r1,fastq_r2,sex,phenotype,paternal_id,maternal_id
-FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,M,1,FAM01_FATHER,FAM01_MOTHER
-FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,M,0,0,0
-FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,F,0,0,0
-FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,F,1,FAM02_FATHER,FAM02_MOTHER
-FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,M,0,0,0
-FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,F,0,0,0
+FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,1,2,FAM01_FATHER,FAM01_MOTHER
+FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,2,2,0,0
+FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,1,1,0,0
+FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,2,2,FAM02_FATHER,FAM02_MOTHER
+FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,1,1,0,0
+FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,2,1,0,0
 ```
 
 > **Note:** Trio structure (proband + both parents) is required for de novo variant calling. Duos and singletons are supported but de novo calling will be skipped.
