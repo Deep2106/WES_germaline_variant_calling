@@ -118,21 +118,22 @@ The pipeline takes a CSV sample sheet. Each row represents one sample member.
 | `family_id` | Family identifier | e.g. `FAM01` |
 | `fastq_r1` | Full path to R1 FASTQ | `/data/FAM01_R1.fastq.gz` |
 | `fastq_r2` | Full path to R2 FASTQ | `/data/FAM01_R2.fastq.gz` |
-| `sex` | Biological sex | `M` or `F` |
-| `phenotype` | phenotype status | `1` (phenotype) or `0` (unphenotype) |
+| `sex` | Biological sex | `1` or `2` |
+| `phenotype` | phenotype status | `2` (phenotype) or `1` or `0` or `-9`(unphenotype) |
 | `paternal_id` | Father's sample ID | `FAM01_FATHER` or `0` if unknown |
 | `maternal_id` | Mother's sample ID | `FAM01_MOTHER` or `0` if unknown |
 
+* 1 = Male, 2 = Female
 ### Example `sample.csv`
 
 ```csv
 sample_id,family_id,fastq_r1,fastq_r2,sex,phenotype,paternal_id,maternal_id
-FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,M,1,FAM01_FATHER,FAM01_MOTHER
-FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,M,0,0,0
-FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,F,0,0,0
-FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,F,1,FAM02_FATHER,FAM02_MOTHER
-FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,M,0,0,0
-FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,F,0,0,0
+FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,1,2,FAM01_FATHER,FAM01_MOTHER
+FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,2,2,0,0
+FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,1,1,0,0
+FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,2,2,FAM02_FATHER,FAM02_MOTHER
+FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,1,1,0,0
+FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,2,1,0,0
 ```
 
 > **Note:** Trio structure (proband + both parents) is required for de novo variant calling. Duos and singletons are supported but de novo calling will be skipped.
@@ -141,7 +142,7 @@ FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fa
 
 ## Running the Pipeline
 
-The pipeline is submitted via the **`run_pipeline.slurm`** master script. All batch configuration is done by editing variables at the **top of this script** — no separate parameter file is required.
+The pipeline is submitted via the **`run_pipeline.slurm`** master script. All batch configuration is done by editing variables at the **top of this script** - no separate parameter file is required.
 
 ### The Master Submit Script
 
@@ -149,12 +150,11 @@ The top of `run_pipeline.slurm` contains all user-configurable settings:
 
 ```bash
 # ============================================================================
-# USER CONFIGURATION — EDIT THESE FOR EACH BATCH
+# USER CONFIGURATION - EDIT THESE FOR EACH BATCH
 # ============================================================================
 
-BATCH_NAME="COHORT_BATCH1"        # Batch identifier — used in all output filenames
+BATCH_NAME="COHORT_BATCH1"        # Batch identifier - used in all output filenames
 INPUT_CSV="batch1_samples.csv"    # Sample sheet for THIS batch only
-RUN_MODE="CREATE"                 # CREATE (first batch) or UPDATE (subsequent batches)
 ```
 
 The script automatically passes all settings to Nextflow and handles:
@@ -167,14 +167,13 @@ The script automatically passes all settings to Nextflow and handles:
 
 ### First Batch (CREATE mode)
 
-**1. Prepare sample sheet** — see [Sample Sheet Format](#sample-sheet-format)
+**1. Prepare sample sheet** - see [Sample Sheet Format](#sample-sheet-format)
 
 **2. Edit the top of `run_pipeline.slurm`:**
 
 ```bash
 BATCH_NAME="COHORT_BATCH1"
 INPUT_CSV="batch1_samples.csv"
-RUN_MODE="CREATE"
 ```
 
 **3. Submit:**
@@ -199,14 +198,13 @@ tail -f .nextflow.log | grep -E "Submitted|COMPLETED|FAILED|ERROR"
 
 Each subsequent batch adds new samples to the existing GenomicsDB and re-genotypes the **entire cohort jointly**. The joint VCF for BATCH2 contains all BATCH1 + BATCH2 samples combined.
 
-**1. Prepare sample sheet containing only the NEW batch samples.** Do not re-include previous batch samples — the pipeline reads existing samples from GenomicsDB automatically.
+**1. Prepare sample sheet containing only the NEW batch samples.** Do not re-include previous batch samples - the pipeline reads existing samples from GenomicsDB automatically.
 
 **2. Edit the top of `run_pipeline.slurm`:**
 
 ```bash
 BATCH_NAME="COHORT_BATCH2"
 INPUT_CSV="batch2_samples.csv"
-RUN_MODE="UPDATE"
 ```
 
 **3. Submit:**
@@ -221,7 +219,7 @@ sbatch run_pipeline.slurm
 
 ## Output Structure
 
-All outputs are namespaced by `BATCH_NAME` — results from different batches never overwrite each other.
+All outputs are namespaced by `BATCH_NAME` - results from different batches never overwrite each other.
 
 ```
 cohort_results/
@@ -267,22 +265,22 @@ cohort_results/
 
 If the pipeline fails or is cancelled (e.g. via `scancel`), follow this **exact sequence** before resuming:
 
-### Step 1 — Identify the failure
+### Step 1 - Identify the failure
 
 ```bash
 grep -E "ERROR|FAILED|Cause" .nextflow.log | tail -20
 ```
 
-### Step 2 — Remove the master PED file
+### Step 2 - Remove the master PED file
 
 The pipeline auto-generates a merged pedigree (`master.ped`) across batches. If interrupted mid-run, a partial PED file will cause failures on resume:
 
 ```bash
-# Remove the master PED — it is regenerated automatically on resume
+# Remove the master PED - it is regenerated automatically on resume
 rm -f /path/to/results/ped/master.ped
 ```
 
-### Step 3 — Remove the Nextflow LOCK file
+### Step 3 - Remove the Nextflow LOCK file
 
 The LOCK file prevents two Nextflow runs from corrupting the cache. It is not released cleanly after `scancel`:
 
@@ -290,7 +288,7 @@ The LOCK file prevents two Nextflow runs from corrupting the cache. It is not re
 rm -f /path/to/workdir/.nextflow/cache/*/db/LOCK
 ```
 
-### Step 4 — Check for runaway files
+### Step 4 - Check for runaway files
 
 Occasionally a failed process can write a very large partial output file:
 
@@ -300,7 +298,7 @@ find /path/to/workdir -size +10G -newer .nextflow.log
 # Remove any unexpected large files before resuming
 ```
 
-### Step 5 — Resume
+### Step 5 - Resume
 
 Add `-resume` to the Nextflow command in `run_pipeline.slurm` then resubmit:
 
@@ -308,7 +306,7 @@ Add `-resume` to the Nextflow command in `run_pipeline.slurm` then resubmit:
 sbatch run_pipeline.slurm
 ```
 
-> `-resume` uses Nextflow's content-hash cache — only failed or new tasks rerun. All successfully completed tasks are skipped instantly.
+> `-resume` uses Nextflow's content-hash cache - only failed or new tasks rerun. All successfully completed tasks are skipped instantly.
 
 ---
 
@@ -334,7 +332,7 @@ All parameters are set in `run_pipeline.slurm`. The following are edited per bat
 
 | SLURM variable | Nextflow param | Description |
 |---|---|---|
-| `BATCH_NAME` | `--batch_name` | Batch identifier — used in all output filenames |
+| `BATCH_NAME` | `--batch_name` | Batch identifier - used in all output filenames |
 | `INPUT_CSV` | `--input` | Sample CSV for this batch (new samples only for UPDATE) |
 | `RUN_MODE` | `--run_mode` | `CREATE` (first batch) or `UPDATE` (subsequent) |
 | `OUTDIR` | `--outdir` | Results output directory |
@@ -354,7 +352,7 @@ All parameters are set in `run_pipeline.slurm`. The following are edited per bat
 | `MQRankSum_filter` | `MQRankSum < -12.5` | Mapping quality rank sum |
 | `ReadPosRankSum_filter` | `ReadPosRankSum < -8.0` | Read position rank sum |
 | `QUAL_filter` | `QUAL < 30.0` | Raw call confidence |
-| `SnpCluster` | 3 SNPs within 25bp | Clustered SNP artifact — 25bp window WES-tuned |
+| `SnpCluster` | 3 SNPs within 25bp | Clustered SNP artifact - 25bp window WES-tuned |
 
 ### INDEL Hard Filters
 
@@ -374,7 +372,7 @@ All parameters are set in `run_pipeline.slurm`. The following are edited per bat
 - **Dual caller concordance:** Variants called by both GATK and DeepVariant (`CALLER=BOTH`) have the highest confidence. `CALLER=GATK_ONLY` or `CALLER=DV_ONLY` variants warrant additional scrutiny.
 - **Multi-allelic normalisation:** Sites with multiple ALT alleles are split into biallelic records before filtering to prevent filter expressions being silently skipped.
 - **PASS-only annotation:** Only `FILTER=PASS` variants are passed to per-sample annotation. Hard-filtered variants are excluded from Excel reports.
-- **SpliceAI efficiency:** SpliceAI runs on the cohort-level VCF before per-sample splitting — scores are computed once per unique variant position regardless of how many samples carry it.
+- **SpliceAI efficiency:** SpliceAI runs on the cohort-level VCF before per-sample splitting - scores are computed once per unique variant position regardless of how many samples carry it.
 - **Batch isolation:** Each batch's outputs are namespaced by `BATCH_NAME`. Running BATCH2 never overwrites BATCH1 results.
 =======
 
@@ -395,10 +393,13 @@ cd /path/to/wes_pipeline_v2
 Create your sample sheet (see `sample_sheet_template.csv` for format):
 
 ```csv
-sample_id,fastq_1,fastq_2,family_id,paternal_id,maternal_id,sex,phenotype
-child1,/path/to/child1_R1.fq.gz,/path/to/child1_R2.fq.gz,FAM001,father1,mother1,male,affected
-father1,/path/to/father1_R1.fq.gz,/path/to/father1_R2.fq.gz,FAM001,0,0,male,unaffected
-mother1,/path/to/mother1_R1.fq.gz,/path/to/mother1_R2.fq.gz,FAM001,0,0,female,unaffected
+sample_id,family_id,fastq_r1,fastq_r2,sex,phenotype,paternal_id,maternal_id
+FAM01_PROBAND,FAM01,/data/fastq/FAM01_PRB_R1.fastq.gz,/data/fastq/FAM01_PRB_R2.fastq.gz,1,2,FAM01_FATHER,FAM01_MOTHER
+FAM01_FATHER,FAM01,/data/fastq/FAM01_FAT_R1.fastq.gz,/data/fastq/FAM01_FAT_R2.fastq.gz,2,2,0,0
+FAM01_MOTHER,FAM01,/data/fastq/FAM01_MOT_R1.fastq.gz,/data/fastq/FAM01_MOT_R2.fastq.gz,1,1,0,0
+FAM02_PROBAND,FAM02,/data/fastq/FAM02_PRB_R1.fastq.gz,/data/fastq/FAM02_PRB_R2.fastq.gz,2,2,FAM02_FATHER,FAM02_MOTHER
+FAM02_FATHER,FAM02,/data/fastq/FAM02_FAT_R1.fastq.gz,/data/fastq/FAM02_FAT_R2.fastq.gz,1,1,0,0
+FAM02_MOTHER,FAM02,/data/fastq/FAM02_MOT_R1.fastq.gz,/data/fastq/FAM02_MOT_R2.fastq.gz,2,1,0,0
 ```
 
 ### 3. Edit SLURM Script
