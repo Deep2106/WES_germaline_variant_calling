@@ -118,11 +118,12 @@ The pipeline takes a CSV sample sheet. Each row represents one sample member.
 | `family_id` | Family identifier | e.g. `FAM01` |
 | `fastq_r1` | Full path to R1 FASTQ | `/data/FAM01_R1.fastq.gz` |
 | `fastq_r2` | Full path to R2 FASTQ | `/data/FAM01_R2.fastq.gz` |
-| `sex` | Biological sex | `M` or `F` |
-| `phenotype` | phenotype status | `1` (phenotype) or `0` (unphenotype) |
+| `sex` | Biological sex | `1` or `2` |
+| `phenotype` | phenotype status | `2` (phenotype) or `1` or `0` or `-9`(unphenotype) |
 | `paternal_id` | Father's sample ID | `FAM01_FATHER` or `0` if unknown |
 | `maternal_id` | Mother's sample ID | `FAM01_MOTHER` or `0` if unknown |
 
+* 1 = Male, 2 = Female
 ### Example `sample.csv`
 
 ```csv
