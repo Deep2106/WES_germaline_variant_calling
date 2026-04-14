@@ -85,8 +85,8 @@ process GATK_VARIANTFILTRATION {
     def indel_sor           = params.indel_filter_sor           ?: '10.0'
     def indel_qual          = params.indel_filter_qual          ?: '20.0'
 
-    // Cluster window — 25bp WES-tuned (10=too narrow/WGS, 35=full WES, 25=conservative)
-    def cluster_window      = params.cluster_window_size        ?: '25'
+    // Cluster window - 25bp WES-tuned (10=too narrow/WGS, 35=full WES, 25=conservative)
+    def cluster_window      = params.cluster_window_size        ?: '35'
 
     """
     #!/bin/bash

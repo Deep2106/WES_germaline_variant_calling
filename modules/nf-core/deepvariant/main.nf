@@ -94,7 +94,7 @@ process DEEPVARIANT {
 
     # =========================================================================
     # SEX-AWARE: Create PAR BED in LOCAL_SCRATCH for males
-    # GRCh38 PAR regions — keeps these diploid while chrX/Y are haploid
+    # GRCh38 PAR regions - keeps these diploid while chrX/Y are haploid
     # Written to local scratch with absolute path so parallel make_examples
     # workers can access it regardless of their working directory
     # =========================================================================

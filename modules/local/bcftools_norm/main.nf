@@ -6,9 +6,9 @@
 
     WHY THIS IS CRITICAL:
     Multi-allelic records (e.g. C > G,T) cause GATK VariantFiltration to silently
-    skip filter expression evaluation in some cases — even when SOR/FS annotations
+    skip filter expression evaluation in some cases - even when SOR/FS annotations
     clearly exceed thresholds. This was confirmed in production:
-        chr3:11018647  SOR=9.883  FS=129.773 → FILTER=. (passed — should have failed)
+        chr3:11018647  SOR=9.883  FS=129.773 → FILTER=. (passed - should have failed)
     The fix is to split all multi-allelics into biallelic records BEFORE SelectVariants
     and VariantFiltration, so each record is evaluated cleanly and independently.
 
@@ -55,7 +55,7 @@ process BCFTOOLS_NORM {
     set -euo pipefail
 
     echo "=============================================="
-    echo "BCFtools Norm — Split Multi-Allelics"
+    echo "BCFtools Norm - Split Multi-Allelics"
     echo "=============================================="
     echo "Input VCF : ${vcf}"
     echo "Reference : ${fasta}"
@@ -65,7 +65,7 @@ process BCFTOOLS_NORM {
     TOTAL_BEFORE=\$(bcftools view -H ${vcf} | wc -l)
     echo "Input     : \${TOTAL_BEFORE} total variants, \${MULTI_BEFORE} multi-allelic"
 
-    # Step 1+2+3: Split multi-allelics, left-align, deduplicate — single pipe
+    # Step 1+2+3: Split multi-allelics, left-align, deduplicate - single pipe
     bcftools norm \\
         -m -any \\
         -f ${fasta} \\

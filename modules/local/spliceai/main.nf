@@ -5,10 +5,10 @@
     Runs SpliceAI on a single chromosome VCF.
     Designed for scatter-gather parallelism: 24 chroms × 1 CPU each.
     
-    SpliceAI is single-threaded — parallelism comes from running
+    SpliceAI is single-threaded - parallelism comes from running
     multiple chromosomes simultaneously via Nextflow scheduling.
     
-    Outputs UNCOMPRESSED VCF — compression handled by MERGE_SPLICEAI_VCFS
+    Outputs UNCOMPRESSED VCF - compression handled by MERGE_SPLICEAI_VCFS
     (bcftools container) to avoid needing htslib in spliceai container.
 ----------------------------------------------------------------------------------------
 */
@@ -19,7 +19,7 @@ process SPLICEAI {
 
     container "${params.containers.spliceai}"
 
-    // SpliceAI can be slow on large chromosomes — allow retries
+    // SpliceAI can be slow on large chromosomes - allow retries
     errorStrategy 'retry'
     maxRetries 1
 
@@ -60,7 +60,7 @@ process SPLICEAI {
     echo "Input variants: \${INPUT_COUNT}"
 
     if [ \${INPUT_COUNT} -eq 0 ]; then
-        echo "WARNING: No variants in ${chrom} — copying input as-is"
+        echo "WARNING: No variants in ${chrom} - copying input as-is"
         zcat ${vcf} > ${prefix}.vcf
         echo "No variants to annotate in ${chrom}" > ${chrom}.spliceai_summary.txt
     else

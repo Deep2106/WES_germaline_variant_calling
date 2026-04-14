@@ -41,7 +41,7 @@ process BCFTOOLS_CONCAT {
     def batch = params.batch_name
     """
     echo "=============================================="
-    echo "BCFtools Concat — GATK-only filtered VCF"
+    echo "BCFtools Concat - GATK-only filtered VCF"
     echo "Batch: ${batch}"
     echo "=============================================="
     echo "Input VCFs:"

@@ -5,7 +5,7 @@
     Apply GATK hard filters to variants (GATK best practices)
 
     Flow:
-    1. BCFTOOLS_NORM    - Split multi-allelics + left-align (CRITICAL — prevents
+    1. BCFTOOLS_NORM    - Split multi-allelics + left-align (CRITICAL - prevents
                           VariantFiltration silently skipping filter evaluation on
                           multi-allelic records e.g. SOR=9.883 passing SOR>3.0)
     2. SelectVariants   - Split into SNPs and INDELs
@@ -47,7 +47,7 @@ workflow VARIANT_FILTER {
     ch_versions = Channel.empty()
 
     // =========================================================================
-    // Step 0: Normalise — split multi-allelics and left-align indels
+    // Step 0: Normalise - split multi-allelics and left-align indels
     // MUST run before SelectVariants to ensure VariantFiltration evaluates
     // each allele independently. Multi-allelic records cause filter expressions
     // to be silently skipped even when SOR/FS clearly exceed thresholds.

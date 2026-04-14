@@ -70,7 +70,7 @@ process DEEPVARIANT {
 
     # =========================================================================
     # SEX-AWARE: Create PAR BED inline for males
-    # GRCh38 PAR regions — keeps these diploid while chrX/Y are haploid
+    # GRCh38 PAR regions - keeps these diploid while chrX/Y are haploid
     # =========================================================================
     HAPLOID_ARGS=""
     if [ "${is_male}" = "true" ]; then

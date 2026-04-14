@@ -41,7 +41,7 @@ process SPLIT_VCF_BY_CHROM {
 
     CHROM_COUNT=0
     for CHROM in \${CHROMS}; do
-        # Skip unplaced contigs / alt contigs — keep only standard chroms
+        # Skip unplaced contigs / alt contigs - keep only standard chroms
         if [[ ! "\${CHROM}" =~ ^chr[0-9XYM]+\$ ]] && [[ ! "\${CHROM}" =~ ^[0-9XYM]+\$ ]]; then
             echo "Skipping non-standard contig: \${CHROM}"
             continue

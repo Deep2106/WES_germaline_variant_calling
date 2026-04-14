@@ -18,7 +18,7 @@
 
     IMPORTANT:
     - HaplotypeCaller uses BQSR BAM
-    - DeepVariant uses MarkDup BAM (no BQSR — DV learns its own quality model)
+    - DeepVariant uses MarkDup BAM (no BQSR - DV learns its own quality model)
     - DeepVariant creates PAR BED inline to avoid symlink/permission issues
 ----------------------------------------------------------------------------------------
 */
@@ -33,8 +33,8 @@ include { DEEPVARIANT                               } from '../../modules/nf-cor
 workflow VARIANT_CALLING {
 
     take:
-    bam_bqsr            // [meta, bam, bai] — BQSR BAM for GATK
-    bam_markdup         // [meta, bam, bai] — MarkDup BAM for DeepVariant
+    bam_bqsr            // [meta, bam, bai] - BQSR BAM for GATK
+    bam_markdup         // [meta, bam, bai] - MarkDup BAM for DeepVariant
     fasta               // path: reference FASTA
     fasta_fai           // path: reference FASTA index
     fasta_dict          // path: reference dict
@@ -52,7 +52,7 @@ workflow VARIANT_CALLING {
     ========================================================================
     */
 
-    // PAR BED file — shipped with pipeline in assets/
+    // PAR BED file - shipped with pipeline in assets/
     ch_par_bed = Channel.value(file("${projectDir}/assets/grch38_par.bed"))
 
     PREPARE_PLOIDY_BEDS(intervals, ch_par_bed)
@@ -77,7 +77,7 @@ workflow VARIANT_CALLING {
 
     /*
     ========================================================================
-        STEP 2a: GATK HC — Males (two runs per sample)
+        STEP 2a: GATK HC - Males (two runs per sample)
         Run 1: Autosomes + PAR (ploidy=2)
         Run 2: Non-PAR chrX + chrY (ploidy=1)
     ========================================================================
@@ -129,7 +129,7 @@ workflow VARIANT_CALLING {
 
     /*
     ========================================================================
-        STEP 2c: GATK HC — Females (single run, exclude chrY)
+        STEP 2c: GATK HC - Females (single run, exclude chrY)
     ========================================================================
     */
 
@@ -176,7 +176,7 @@ workflow VARIANT_CALLING {
     }
 
     emit:
-    gvcf             = ch_gvcf          // [meta, gvcf, tbi] — merged per sample
-    deepvariant_gvcf = ch_dv_gvcf       // [meta, gvcf, tbi] — DV output
+    gvcf             = ch_gvcf          // [meta, gvcf, tbi] - merged per sample
+    deepvariant_gvcf = ch_dv_gvcf       // [meta, gvcf, tbi] - DV output
     versions         = ch_versions
 }

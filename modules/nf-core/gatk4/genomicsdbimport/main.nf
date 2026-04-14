@@ -111,7 +111,7 @@ else:
 PYEOF
 
             if [ \$? -ne 0 ]; then
-                echo "ERROR: callset.json parsing failed — cannot safely determine existing samples" >&2
+                echo "ERROR: callset.json parsing failed - cannot safely determine existing samples" >&2
                 echo "       Refusing to continue to prevent duplicate-sample corruption of GenomicsDB" >&2
                 exit 1
             fi
@@ -122,7 +122,7 @@ PYEOF
         else
             touch existing_samples.txt
             EXISTING_COUNT=0
-            echo "WARNING: No callset.json found in ${existing_db} — treating DB as empty"
+            echo "WARNING: No callset.json found in ${existing_db} - treating DB as empty"
         fi
         
         echo ""

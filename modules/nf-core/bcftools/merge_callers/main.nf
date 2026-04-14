@@ -15,7 +15,7 @@
     - Spanning deletions (*) were converted to Alt=0 (phantom deletions)
     - Inconsistent indel representation caused database lookup mismatches
 
-    Normalization BEFORE merge also improves concordance accuracy — same
+    Normalization BEFORE merge also improves concordance accuracy - same
     variant won't be represented differently by each caller.
 
     Output tags:

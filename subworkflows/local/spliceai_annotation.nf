@@ -5,7 +5,7 @@
     Parallelizes SpliceAI across chromosomes:
     
     1. SPLIT:  filtered.vcf.gz → chr1.vcf.gz, chr2.vcf.gz, ..., chrY.vcf.gz
-    2. SCORE:  SpliceAI per chromosome (1 CPU, 16GB each — ~20 run in parallel)
+    2. SCORE:  SpliceAI per chromosome (1 CPU, 16GB each - ~20 run in parallel)
                Outputs UNCOMPRESSED VCF (no bgzip/tabix in spliceai container)
     3. MERGE:  bgzip + tabix + bcftools concat → filtered.spliceai.merged.vcf.gz
     

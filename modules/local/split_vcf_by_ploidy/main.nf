@@ -107,7 +107,7 @@ EOF
         tabix -p vcf haploid.vcf.gz
         HAPLOID_COUNT=\$(bcftools view -H haploid.vcf.gz | wc -l)
     else
-        # No haploid regions — create empty VCF with header
+        # No haploid regions - create empty VCF with header
         bcftools view -h ${vcf} | bgzip > haploid.vcf.gz
         tabix -p vcf haploid.vcf.gz
         HAPLOID_COUNT=0
