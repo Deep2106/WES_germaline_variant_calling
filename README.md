@@ -554,4 +554,10 @@ peddy_0.4.8.sif
 annovar_2020Jun08.sif
 python_3.14.2.sif
 ```
+### 🔗 External Resources
+For more information about the containers used in this project, please refer to the build repository:
 
+---
+[**BUILD_SINGULARITY_IMAGES**](https://github.com/Deep2106/BUILD_SINGULARITY_IMAGES/tree/main)
+
+---
