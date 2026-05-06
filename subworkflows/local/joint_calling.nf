@@ -1,16 +1,19 @@
 /*
     JOINT CALLING SUBWORKFLOW
     GenomicsDB (incremental) + GenotypeGVCFs + optional GLnexus
-    
+
     IMPORTANT:
     - GATK: Uses GenomicsDB for incremental joint calling (all samples)
     - DeepVariant: Stores GVCFs persistently, GLnexus uses ALL stored GVCFs
     - Both callers produce VCFs with ALL samples for proper merging
     - Backup of GenomicsDB/PED is handled by SLURM script before pipeline runs
+    - BCFTOOLS_SETGT masks DP=0 genotypes after joint calling to prevent false
+      de novo calls and AF distortion in multi-kit cohorts
 */
 
 include { GATK_GENOMICSDBIMPORT  } from '../../modules/nf-core/gatk4/genomicsdbimport/main'
 include { GATK_GENOTYPEGVCFS     } from '../../modules/nf-core/gatk4/genotypegvcfs/main'
+include { BCFTOOLS_SETGT         } from '../../modules/nf-core/bcftools/setgt/main'
 include { GLNEXUS                } from '../../modules/nf-core/glnexus/main'
 include { BCFTOOLS_MERGE_CALLERS } from '../../modules/nf-core/bcftools/merge_callers/main'
 include { MERGE_PED              } from '../../modules/local/merge_ped/main'
@@ -38,7 +41,7 @@ workflow JOINT_CALLING {
     // =========================================================================
     // GATK Joint Calling (using GenomicsDB)
     // =========================================================================
-    
+
     // Collect all GATK GVCFs
     ch_gvcf_files = gvcf.map { meta, gvcf, tbi -> gvcf }.collect()
     ch_tbi_files = gvcf.map { meta, gvcf, tbi -> tbi }.collect()
@@ -70,13 +73,25 @@ workflow JOINT_CALLING {
     )
     ch_versions = ch_versions.mix(GATK_GENOTYPEGVCFS.out.versions)
 
-    // Output VCF
-    ch_joint_vcf = GATK_GENOTYPEGVCFS.out.vcf
+    // =========================================================================
+    // Mask DP=0 genotypes — prevents false de novo calls and AF distortion
+    // in multi-kit cohorts where some samples have no reads in kit-specific
+    // regions. GenotypeGVCFs outputs 0/0 (DP=0) for these — this step
+    // converts them to ./. (missing) so they are not treated as true REF calls.
+    // This is a no-op when all samples share the same capture kit.
+    // =========================================================================
+    BCFTOOLS_SETGT(
+        GATK_GENOTYPEGVCFS.out.vcf
+    )
+    ch_versions = ch_versions.mix(BCFTOOLS_SETGT.out.versions)
+
+    // Use masked VCF for all downstream analysis
+    ch_joint_vcf = BCFTOOLS_SETGT.out.vcf
 
     // =========================================================================
     // DeepVariant Joint Calling (using GLnexus with ALL stored GVCFs)
     // =========================================================================
-    
+
     if (run_deepvariant) {
         // Current batch DeepVariant GVCFs
         ch_current_dv_gvcfs = dv_gvcf.map { meta, gvcf, tbi -> gvcf }.collect()
@@ -95,10 +110,10 @@ workflow JOINT_CALLING {
         GLNEXUS(COLLECT_DV_GVCFS.out.all_gvcfs)
         ch_versions = ch_versions.mix(GLNEXUS.out.versions)
 
-        // Merge GATK and DeepVariant VCFs with caller tags
+        // Merge masked GATK VCF and DeepVariant VCFs with caller tags
         // Both VCFs now have ALL samples
         BCFTOOLS_MERGE_CALLERS(
-            GATK_GENOTYPEGVCFS.out.vcf,
+            BCFTOOLS_SETGT.out.vcf,       // masked GATK VCF
             GLNEXUS.out.vcf,
             fasta,
             fasta_fai,

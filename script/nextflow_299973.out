@@ -1,0 +1,292 @@
+MODE: INITIAL (First run - will create GenomicsDB and master.ped)
+==============================================================================
+WES/WGS Germline Variant Calling Pipeline v2.0
+==============================================================================
+Date: Sun Jan 25 20:07:58 GMT 2026
+Node: prdubrhpc1-02.research.rcsi.com
+SLURM Job ID: 299973
+------------------------------------------------------------------------------
+Batch Name: batch1
+Input CSV: sample_sheet_required.csv
+Run Mode: INITIAL
+DeepVariant: false
+------------------------------------------------------------------------------
+TMPDIR (local SSD): /local/scratch/299973
+NXF_WORK (NFS): /home/data/human_genetics/ONE4ALL/work2
+GENOMICSDB_PATH: /home/data/human_genetics/ONE4ALL/TEST_DVG/genomicsdb_v2
+MASTER_PED: /home/data/human_genetics/ONE4ALL/TEST_DVG/results_v2/ped/master.ped
+OUTPUT_DIR: /home/data/human_genetics/ONE4ALL/TEST_DVG/results_v2
+------------------------------------------------------------------------------
+NXF_SINGULARITY_LIBRARYDIR: /home/data/human_genetics/ONE4ALL/Docker_Images
+==============================================================================
+Available SIF containers:
+-rwxrwx---. 1 deepakbharti human_genetics_users   83722240 Jan  7 14:10 /home/data/human_genetics/ONE4ALL/Docker_Images/annovar_2020Jun08.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users   69554176 Jan 11 14:06 /home/data/human_genetics/ONE4ALL/Docker_Images/bcftool_1.23.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users   38912000 Jan 14 14:21 /home/data/human_genetics/ONE4ALL/Docker_Images/bwa-mem2-samtool2.3.1_1.22.1.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users 3794018304 Jan 23 15:12 /home/data/human_genetics/ONE4ALL/Docker_Images/deeptrio_1.8.0.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users 2963640320 Jan 23 14:53 /home/data/human_genetics/ONE4ALL/Docker_Images/deepvariant_1.9.0.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  111972352 Jan 11 13:28 /home/data/human_genetics/ONE4ALL/Docker_Images/fastp_0.23.4.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  204132352 Jan 11 13:23 /home/data/human_genetics/ONE4ALL/Docker_Images/fastqc_0.12.1.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users 2340528128 Jan 11 13:42 /home/data/human_genetics/ONE4ALL/Docker_Images/gatk4_4.6.2.0.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  117153792 Jan 24 20:59 /home/data/human_genetics/ONE4ALL/Docker_Images/glnexus_1.2.7.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users   82710528 Jan 12 16:50 /home/data/human_genetics/ONE4ALL/Docker_Images/mosdepth_0.3.11.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  271745024 Jan 11 14:12 /home/data/human_genetics/ONE4ALL/Docker_Images/multiqc_1.33.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  362369024 Jan 11 14:14 /home/data/human_genetics/ONE4ALL/Docker_Images/peddy_0.4.8.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  387514368 Jan 11 14:18 /home/data/human_genetics/ONE4ALL/Docker_Images/python_3.14.2.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users  156221440 Jan 11 13:31 /home/data/human_genetics/ONE4ALL/Docker_Images/samtools_1.23.sif
+-rwxrwx---. 1 deepakbharti human_genetics_users   63479808 Jan 11 14:15 /home/data/human_genetics/ONE4ALL/Docker_Images/vcftools_0.1.16.1.sif
+==============================================================================
+N E X T F L O W  ~  version 25.10.2
+WARN: It appears you have never run this project before -- Option `-resume` is ignored
+Launching `main.nf` [angry_baekeland] DSL2 - revision: 3826656f0a
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║       WES/WGS GERMLINE VARIANT CALLING PIPELINE v2.0.0                    ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  Input samplesheet  : /home/data/human_genetics/ONE4ALL/sample_sheet_required.csv
+║  Reference genome   : /home/data/human_genetics/ONE4ALL/reference/hg38.fasta
+║  Target regions     : /home/data/human_genetics/ONE4ALL/reference/S000021_hg38_targets_extended.bed
+║  GenomicsDB path    : /home/data/human_genetics/ONE4ALL/TEST_DVG/genomicsdb_v2
+║  Mode               : CREATE (initial)
+║  Mode reason        : First run (no existing GenomicsDB)
+║  Master PED         : Will create
+║  Run DeepVariant    : false
+║  Output directory   : /home/data/human_genetics/ONE4ALL/TEST_DVG/results_v2
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+Parameters validated
+[15/80a7f6] Submitted process > INPUT_VALIDATION:INPUT_CHECK (input_check)
+ERROR ~ Error executing process > 'INPUT_VALIDATION:INPUT_CHECK (input_check)'
+
+Caused by:
+  Process `INPUT_VALIDATION:INPUT_CHECK (input_check)` terminated with an error exit status (1)
+
+
+Command executed:
+
+  python3 << 'PYTHON_SCRIPT'
+  import csv
+  import sys
+  import os
+  from pathlib import Path
+  
+  def validate_samplesheet(samplesheet_path):
+      # Validate CSV and return sample data
+      # Expected format: sample_id,family_id,paternal_id,maternal_id,sex,phenotype,fastq_r1,fastq_r2
+      required_cols = ['sample_id', 'fastq_r1', 'fastq_r2']
+      ped_cols = ['family_id', 'paternal_id', 'maternal_id', 'sex', 'phenotype']
+      
+      samples = []
+      errors = []
+      
+      with open(samplesheet_path, 'r') as f:
+          reader = csv.DictReader(f)
+          headers = reader.fieldnames
+          
+          print(f"CSV columns found: {headers}")
+          
+          # Check required columns
+          for col in required_cols:
+              if col not in headers:
+                  errors.append(f"Missing required column: {col}")
+          
+          if errors:
+              print("\n".join(errors), file=sys.stderr)
+              sys.exit(1)
+          
+          for i, row in enumerate(reader, start=2):
+              sample = {}
+              
+              # Validate required fields
+              sample['sample_id'] = row['sample_id'].strip()
+              sample['fastq_r1'] = row['fastq_r1'].strip()
+              sample['fastq_r2'] = row['fastq_r2'].strip()
+              
+              if not sample['sample_id']:
+                  errors.append(f"Row {i}: Empty sample_id")
+              if not sample['fastq_r1'] or not os.path.exists(sample['fastq_r1']):
+                  errors.append(f"Row {i}: fastq_r1 not found: {sample['fastq_r1']}")
+              if not sample['fastq_r2'] or not os.path.exists(sample['fastq_r2']):
+                  errors.append(f"Row {i}: fastq_r2 not found: {sample['fastq_r2']}")
+              
+              # PED fields (optional, with defaults)
+              sample['family_id'] = row.get('family_id', sample['sample_id']).strip() or sample['sample_id']
+              sample['paternal_id'] = row.get('paternal_id', '0').strip() or '0'
+              sample['maternal_id'] = row.get('maternal_id', '0').strip() or '0'
+              
+              # Sex: 1=male, 2=female, 0=unknown
+              sex = row.get('sex', '0').strip().lower()
+              if sex in ['male', 'm', '1']:
+                  sample['sex'] = '1'
+              elif sex in ['female', 'f', '2']:
+                  sample['sex'] = '2'
+              else:
+                  sample['sex'] = '0'
+              
+              # Phenotype: 1=unaffected, 2=affected, 0=unknown
+              pheno = row.get('phenotype', '0').strip().lower()
+              if pheno in ['affected', 'a', '2']:
+                  sample['phenotype'] = '2'
+              elif pheno in ['unaffected', 'u', '1']:
+                  sample['phenotype'] = '1'
+              else:
+                  sample['phenotype'] = '0'
+              
+              samples.append(sample)
+      
+      if errors:
+          print("Validation errors:", file=sys.stderr)
+          print("\n".join(errors), file=sys.stderr)
+          sys.exit(1)
+      
+      return samples
+  
+  def write_valid_csv(samples, output_path):
+      # Write validated CSV (keep fastq_r1, fastq_r2 naming)
+      with open(output_path, 'w', newline='') as f:
+          writer = csv.DictWriter(f, fieldnames=['sample_id', 'fastq_r1', 'fastq_r2', 
+                                                  'family_id', 'paternal_id', 'maternal_id', 
+                                                  'sex', 'phenotype'])
+          writer.writeheader()
+          writer.writerows(samples)
+  
+  def write_ped(samples, output_path):
+      # Write PED file
+      with open(output_path, 'w') as f:
+          for s in samples:
+              line = f"{s['family_id']}\t{s['sample_id']}\t{s['paternal_id']}\t{s['maternal_id']}\t{s['sex']}\t{s['phenotype']}\n"
+              f.write(line)
+  
+  def read_existing_ped(ped_path):
+      # Read existing PED file
+      samples = {}
+      if os.path.exists(ped_path) and os.path.getsize(ped_path) > 0:
+          with open(ped_path, 'r') as f:
+              for line in f:
+                  if line.strip():
+                      parts = line.strip().split('\t')
+                      if len(parts) >= 6:
+                          sample_id = parts[1]
+                          samples[sample_id] = {
+                              'family_id': parts[0],
+                              'sample_id': parts[1],
+                              'paternal_id': parts[2],
+                              'maternal_id': parts[3],
+                              'sex': parts[4],
+                              'phenotype': parts[5]
+                          }
+      return samples
+  
+  def merge_ped(existing_samples, new_samples):
+      # Merge new samples into existing PED, updating if exists
+      merged = existing_samples.copy()
+      for s in new_samples:
+          merged[s['sample_id']] = s
+      return list(merged.values())
+  
+  # Main execution
+  print("=== Input Validation ===")
+  
+  # Validate samplesheet
+  samples = validate_samplesheet('sample_sheet_required.csv')
+  print(f"Validated {len(samples)} samples")
+  
+  # Write valid CSV
+  write_valid_csv(samples, 'samplesheet.valid.csv')
+  print("Written: samplesheet.valid.csv")
+  
+  # Write batch PED
+  write_ped(samples, 'batch.ped')
+  print("Written: batch.ped")
+  
+  # Handle master PED
+  has_master = False
+  if has_master:
+      existing = read_existing_ped('NO_FILE')
+      print(f"Read {len(existing)} samples from existing master.ped")
+      merged = merge_ped(existing, samples)
+      write_ped(merged, 'master.ped')
+      print(f"Written merged master.ped with {len(merged)} samples")
+  else:
+      write_ped(samples, 'master.ped')
+      print(f"Written new master.ped with {len(samples)} samples")
+  
+  print("=== Validation Complete ===")
+  PYTHON_SCRIPT
+      
+      cat <<-END_VERSIONS > versions.yml
+      "INPUT_VALIDATION:INPUT_CHECK":
+          python: $(python3 --version | sed 's/Python //')
+      END_VERSIONS
+
+Command exit status:
+  1
+
+Command output:
+  === Input Validation ===
+  CSV columns found: ['sample_id', 'family_id', 'paternal_id', 'maternal_id', 'sex', 'phenotype', 'fastq_r1', 'fastq_r2']
+
+Command error:
+  Validation errors:
+  Row 2: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007A_S8_R1_001.fastq.gz
+  Row 2: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007A_S8_R2_001.fastq.gz
+  Row 3: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007B_S7_R1_001.fastq.gz
+  Row 3: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007B_S7_R2_001.fastq.gz
+  Row 4: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007C_S4_R1_001.fastq.gz
+  Row 4: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007C_S4_R2_001.fastq.gz
+  Row 5: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0042A_S8_R1_001.fastq.gz
+  Row 5: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0042A_S8_R2_001.fastq.gz
+  Row 6: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0059A_S3_R1_001.fastq.gz
+  Row 6: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0059A_S3_R2_001.fastq.gz
+  Row 7: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0139A_1.fastq.gz
+  Row 7: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0139A_2.fastq.gz
+
+Work dir:
+  /home/data/human_genetics/ONE4ALL/work2/15/80a7f6416bceb25d94c1b8def82867
+
+Container:
+  /home/data/human_genetics/ONE4ALL/Docker_Images/python_3.14.2.sif
+
+Tip: view the complete command output by changing to the process work dir and entering the command `cat .command.out`
+
+ -- Check '.nextflow.log' file for details
+Execution cancelled -- Finishing pending tasks before exit
+ERROR ~ 
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                           PIPELINE FAILED                                     ║
+║  Error: Validation errors:
+Row 2: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007A_S8_R1_001.fastq.gz
+Row 2: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007A_S8_R2_001.fastq.gz
+Row 3: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007B_S7_R1_001.fastq.gz
+Row 3: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007B_S7_R2_001.fastq.gz
+Row 4: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0007C_S4_R1_001.fastq.gz
+Row 4: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0007C_S4_R2_001.fastq.gz
+Row 5: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0042A_S8_R1_001.fastq.gz
+Row 5: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0042A_S8_R2_001.fastq.gz
+Row 6: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0059A_S3_R1_001.fastq.gz
+Row 6: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0059A_S3_R2_001.fastq.gz
+Row 7: fastq_r1 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R1/LH0139A_1.fastq.gz
+Row 7: fastq_r2 not found: /home/data/lighthouse/cohort1_lighthouse/01_fastq/R2/LH0139A_2.fastq.gz
+╚═══════════════════════════════════════════════════════════════════════════════╝
+    
+
+ -- Check '.nextflow.log' file for details
+
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                         PIPELINE COMPLETED                                    ║
+╠═══════════════════════════════════════════════════════════════════════════════╣
+║  Status      : FAILED
+║  Duration    : 8.5s
+║  Output      : /home/data/human_genetics/ONE4ALL/TEST_DVG/results_v2
+╚═══════════════════════════════════════════════════════════════════════════════╝
+    
+WARN: Graphviz is required to render the execution DAG in the given format -- See http://www.graphviz.org for more info.
+==============================================================================
+Pipeline finished with exit code: 1
+Date: Sun Jan 25 20:08:11 GMT 2026
+------------------------------------------------------------------------------
+FAILED - Check logs:
+  - Nextflow log: /home/data/human_genetics/ONE4ALL/TT/wes-pipeline/.nextflow.log
+  - SLURM output: nextflow_299973.out
+  - SLURM error: nextflow_299973.err
+==============================================================================

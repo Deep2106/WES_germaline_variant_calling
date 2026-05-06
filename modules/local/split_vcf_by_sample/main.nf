@@ -43,7 +43,8 @@ process SPLIT_VCF_BY_SAMPLE {
     
     """
     # Create sample list file
-    cat <<EOF > sample_list.txt
+    cat <<EOF | sort -u > sample_list.txt
+    
 ${sample_list}
 EOF
     
@@ -55,12 +56,13 @@ EOF
     #   PASS = explicitly passed all filters
     #   .    = unfiltered sites (e.g. from upstream callers that don't apply filters)
     # Excludes: FS_filter, SOR_filter, QD_filter, SnpCluster etc.
-    while read sample_id; do
+   while read -r sample_id; do
+    [ -z "\${sample_id}" ] && continue 
         echo "Extracting PASS variants for: \${sample_id}"
         
         bcftools view \\
             --samples \${sample_id} \\
-            --apply-filters "PASS,." \\
+            -f "PASS,." \\
             --output-type u \\
             ${vcf} \\
         | bcftools view \\

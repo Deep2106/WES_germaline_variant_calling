@@ -2,17 +2,6 @@
 ========================================================================================
     GATK GENOMICSDBIMPORT MODULE
 ========================================================================================
-    FIXES:
-    - Remove symlink before copying back (publishDir needs real directory)
-    - Replaced broken sed callset.json parser with Python JSON parser
-      Reason: GATK >= 4.5 / GenomicsDB >= 1.4 writes array format:
-        {"callsets": [{"sample_name": "...", "row_idx": "0", ...}]}
-      Old sed assumed dict format: {"SAMPLE": {"row_idx": 0}}
-      Mismatch caused 0 existing samples detected -> all flagged as NEW ->
-      GenomicsDBException: Duplicate sample on UPDATE runs
-    - Parser handles both array and dict formats with hard fail on parse
-      error (no silent suppression via || true)
-========================================================================================
 */
 
 process GATK_GENOMICSDBIMPORT {
@@ -65,64 +54,18 @@ process GATK_GENOMICSDBIMPORT {
         echo "=============================================="
         echo "Existing DB: ${existing_db}"
         
-        # Check if input is symlink (Nextflow staging)
-        if [ -L "${existing_db}" ]; then
-            echo "Input is symlink -> \$(readlink -f "${existing_db}")"
-        fi
-        
         echo ""
         echo "Checking for existing samples in GenomicsDB..."
-
-        # Extract sample names from callset.json
-        # Supports both formats written by different GenomicsDB versions:
-        #   Array format  (GenomicsDB >= 1.4 / GATK >= 4.5):
-        #     {"callsets": [{"sample_name": "SAMPLE", "row_idx": "0", ...}, ...]}
-        #   Dict format   (GenomicsDB < 1.4 / GATK < 4.5):
-        #     {"callsets": {"SAMPLE": {"row_idx": 0}, ...}}
+        
         if [ -f "${existing_db}/callset.json" ]; then
-            python3 - "${existing_db}/callset.json" > existing_samples.txt <<'PYEOF'
-import json, sys
-
-callset_file = sys.argv[1]
-try:
-    with open(callset_file) as fh:
-        data = json.load(fh)
-except Exception as e:
-    print(f"ERROR: Failed to parse {callset_file}: {e}", file=sys.stderr)
-    sys.exit(1)
-
-callsets = data.get("callsets", [])
-
-if isinstance(callsets, list):
-    # Array format: [{"sample_name": "...", ...}, ...]
-    for entry in callsets:
-        name = entry.get("sample_name", "").strip()
-        if name:
-            print(name)
-elif isinstance(callsets, dict):
-    # Dict format: {"SAMPLE": {"row_idx": ...}, ...}
-    for name in callsets:
-        name = name.strip()
-        if name:
-            print(name)
-else:
-    print(f"ERROR: Unexpected callsets type: {type(callsets)}", file=sys.stderr)
-    sys.exit(1)
-PYEOF
-
-            if [ \$? -ne 0 ]; then
-                echo "ERROR: callset.json parsing failed — cannot safely determine existing samples" >&2
-                echo "       Refusing to continue to prevent duplicate-sample corruption of GenomicsDB" >&2
-                exit 1
-            fi
-
+            # Extract sample names: find lines with row_idx, get first quoted string
+            grep "row_idx" "${existing_db}/callset.json" | grep -v "callsets" | sed 's/^[^"]*"\\([^"]*\\)".*/\\1/' > existing_samples.txt || true
             EXISTING_COUNT=\$(wc -l < existing_samples.txt)
-            echo "Found \${EXISTING_COUNT} existing samples (JSON parsed):"
+            echo "Found \${EXISTING_COUNT} existing samples"
             cat existing_samples.txt
         else
             touch existing_samples.txt
             EXISTING_COUNT=0
-            echo "WARNING: No callset.json found in ${existing_db} — treating DB as empty"
         fi
         
         echo ""
@@ -135,7 +78,7 @@ PYEOF
             if [ -f "\$gvcf" ]; then
                 sample_name=\$(bcftools query -l "\$gvcf" | head -1)
                 if grep -qx "\${sample_name}" existing_samples.txt; then
-                    echo "  SKIP: \${sample_name} (already in DB)"
+                    echo "  SKIP: \${sample_name}"
                     ((SKIPPED++)) || true
                 else
                     printf "%s\\t%s\\n" "\${sample_name}" "\$(readlink -f "\$gvcf")" >> sample_map.txt
@@ -146,14 +89,11 @@ PYEOF
         done
         
         echo ""
-        echo "Summary: New=\${ADDED}, Skipped=\${SKIPPED}"
+        echo "New: \${ADDED}, Skipped: \${SKIPPED}"
         
         if [ \${ADDED} -eq 0 ]; then
-            echo "No new samples to add"
-            # Remove symlink if exists, then copy
-            [ -L genomicsdb ] && rm genomicsdb
-            [ -d genomicsdb ] && rm -rf genomicsdb
-            cp -rL "${existing_db}" genomicsdb
+            echo "No new samples - copying existing DB"
+            cp -r "${existing_db}" genomicsdb
             echo '"${task.process}":' > versions.yml
             echo '    gatk4: "4.6.2.0"' >> versions.yml
             echo '    mode: "update_skipped"' >> versions.yml
@@ -161,10 +101,7 @@ PYEOF
         fi
         
         LOCAL_GENOMICSDB="\${LOCAL_SCRATCH}/genomicsdb_temp"
-        echo ""
-        echo "Copying existing DB to local scratch..."
-        cp -rL "${existing_db}" "\${LOCAL_GENOMICSDB}"
-        echo "Local copy size: \$(du -sh "\${LOCAL_GENOMICSDB}" | cut -f1)"
+        cp -r "${existing_db}" "\${LOCAL_GENOMICSDB}"
         
         echo ""
         echo "Running GenomicsDBImport UPDATE..."
@@ -180,23 +117,12 @@ PYEOF
             --bypass-feature-reader true \\
             --batch-size 50
         
-        echo ""
-        echo "Copying updated DB back to work directory..."
-        # CRITICAL: Remove symlink first, otherwise cp goes to symlink target
-        [ -L genomicsdb ] && rm genomicsdb
-        [ -d genomicsdb ] && rm -rf genomicsdb
-        cp -rL "\${LOCAL_GENOMICSDB}" genomicsdb
+        cp -r "\${LOCAL_GENOMICSDB}" genomicsdb
         rm -rf "\${LOCAL_SCRATCH}"
         
         echo ""
         echo "UPDATE complete: \${ADDED} samples added"
-        echo "Final GenomicsDB size: \$(du -sh genomicsdb | cut -f1)"
-        
-        # Verify it's a real directory, not symlink
-        if [ -L genomicsdb ]; then
-            echo "ERROR: genomicsdb is still a symlink!" >&2
-            exit 1
-        fi
+        du -sh genomicsdb
         
         echo '"${task.process}":' > versions.yml
         echo "    gatk4: \\"\$(gatk --version 2>&1 | head -n1 | sed 's/^.*(GATK) v//' | sed 's/ .*\$//')\\"" >> versions.yml
@@ -223,9 +149,7 @@ PYEOF
         echo "GENOMICSDB CREATE MODE"
         echo "=============================================="
         
-        # Clean up any existing genomicsdb (symlink or directory)
-        [ -L genomicsdb ] && rm genomicsdb
-        [ -d genomicsdb ] && rm -rf genomicsdb
+        [ -d "genomicsdb" ] && rm -rf genomicsdb
         
         > sample_map.txt
         for gvcf in *.g.vcf.gz; do
@@ -241,8 +165,6 @@ PYEOF
         
         LOCAL_GENOMICSDB="\${LOCAL_SCRATCH}/genomicsdb_temp"
         
-        echo ""
-        echo "Running GenomicsDBImport CREATE..."
         gatk --java-options "${java_opts}" GenomicsDBImport \\
             --sample-name-map sample_map.txt \\
             --genomicsdb-workspace-path "\${LOCAL_GENOMICSDB}" \\
@@ -255,14 +177,12 @@ PYEOF
             --bypass-feature-reader true \\
             --batch-size 50
         
-        echo ""
-        echo "Copying DB to work directory..."
-        cp -rL "\${LOCAL_GENOMICSDB}" genomicsdb
+        cp -r "\${LOCAL_GENOMICSDB}" genomicsdb
         rm -rf "\${LOCAL_SCRATCH}"
         
         echo ""
         echo "CREATE complete: \${SAMPLE_COUNT} samples"
-        echo "Final GenomicsDB size: \$(du -sh genomicsdb | cut -f1)"
+        du -sh genomicsdb
         
         echo '"${task.process}":' > versions.yml
         echo "    gatk4: \\"\$(gatk --version 2>&1 | head -n1 | sed 's/^.*(GATK) v//' | sed 's/ .*\$//')\\"" >> versions.yml

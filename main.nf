@@ -222,7 +222,7 @@ workflow {
 
     ch_reads = INPUT_VALIDATION.out.reads
     ch_batch_ped = INPUT_VALIDATION.out.batch_ped
-    ch_master_ped = INPUT_VALIDATION.out.master_ped
+    ch_master_ped = INPUT_VALIDATION.out.updated_ped
     ch_versions = ch_versions.mix(INPUT_VALIDATION.out.versions)
 
     /*

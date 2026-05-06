@@ -30,6 +30,7 @@ workflow INPUT_VALIDATION {
                 id: row.sample_id,
                 sample_id: row.sample_id,  // For annotation modules
                 family_id: row.family_id,
+                lane: row.lane ?: 'L001',
                 paternal_id: row.paternal_id,
                 maternal_id: row.maternal_id,
                 sex: row.sex,
@@ -44,6 +45,6 @@ workflow INPUT_VALIDATION {
     emit:
     reads      = ch_reads
     batch_ped  = INPUT_CHECK.out.batch_ped
-    master_ped = INPUT_CHECK.out.master_ped
+    updated_ped  = INPUT_CHECK.out.master_ped
     versions   = ch_versions
 }

@@ -2,204 +2,147 @@
 ========================================================================================
     MERGE PED MODULE
 ========================================================================================
-    Merge new sample PED entries with existing master PED file
-    Used for incremental joint calling to maintain a complete pedigree
-    
+    Merges new sample PED entries with existing master PED file.
+    Used for incremental joint calling to maintain a complete pedigree.
+
+    Changes vs original:
+    - Deduplication is now explicit: last-write-wins per (family_id, sample_id) key.
+      This handles the case where INPUT_CHECK may emit one PED line per lane
+      before dedup occurs upstream, or if a sample is resubmitted across batches.
+
     Input:
-        new_ped         - PED file with new samples from current batch
-        existing_ped    - Existing master PED file (optional, may be NO_FILE)
-        output_path     - Path to save the merged master PED file
-    
+        new_ped      - PED file from current batch (already deduped by INPUT_CHECK)
+        existing_ped - Existing master PED file (optional, may be NO_FILE)
+        output_path  - Persistent path to copy master.ped (optional)
+
     Output:
-        merged_ped      - Combined PED file with all samples
-        versions        - Software versions
-    
-    PED file format (6 columns, tab-separated):
-        FamilyID  IndividualID  PaternalID  MaternalID  Sex  Phenotype
-        
-    Notes:
-        - Removes duplicate entries (keeps first occurrence)
-        - Preserves comments (lines starting with #)
-        - Sex: 1=male, 2=female, 0=unknown
-        - Phenotype: 1=unaffected, 2=affected, 0=unknown
+        master.ped   - Combined, deduplicated PED file
+        versions.yml
+
+    PED columns (tab-separated): FamilyID  IndividualID  PaternalID  MaternalID  Sex  Phenotype
+    Sex: 1=male, 2=female, 0=unknown | Phenotype: 1=unaffected, 2=affected, 0=unknown
 ----------------------------------------------------------------------------------------
 */
 
 process MERGE_PED {
     tag "merge_ped"
     label 'process_single'
-    
-    // Use python container for scripting
     container "${params.containers?.python ?: 'python:3.9-slim'}"
-    
-    publishDir "${params.outdir}/pedigree", mode: params.publish_dir_mode, failOnError: false ?: 'copy'
-    
+
+    publishDir "${params.outdir}/pedigree", mode: params.publish_dir_mode ?: 'copy', failOnError: false
+
     input:
     path new_ped
     path existing_ped
-    val output_path
-    
+    val  output_path
+
     output:
-    path "master.ped"   , emit: merged_ped
-    path "versions.yml" , emit: versions
-    
+    path "master.ped",   emit: merged_ped
+    path "versions.yml", emit: versions
+
     script:
     def has_existing = existing_ped.name != 'NO_FILE' && existing_ped.name != 'NO_PED'
     """
-    #!/bin/bash
-    set -euo pipefail
-    
-    echo "=============================================="
-    echo "MERGE PED - Pedigree File Management"
-    echo "=============================================="
-    echo "New PED file: ${new_ped}"
-    echo "Existing PED: ${has_existing ? existing_ped : 'None (first run)'}"
-    echo "Output path: ${output_path}"
-    
-    # Initialize merged file
-    > master.ped
-    
-    # Track seen samples to avoid duplicates
-    declare -A seen_samples
-    
-    # Function to process PED file
-    process_ped() {
-        local ped_file="\$1"
-        local source="\$2"
-        
-        if [ ! -f "\$ped_file" ]; then
-            echo "WARNING: PED file not found: \$ped_file"
-            return
-        fi
-        
-        local added=0
-        local skipped=0
-        
-        while IFS=\$'\\t' read -r fam_id ind_id pat_id mat_id sex pheno rest || [ -n "\$fam_id" ]; do
-            # Skip empty lines
-            [ -z "\$fam_id" ] && continue
-            
-            # Preserve comments
-            if [[ "\$fam_id" == "#"* ]]; then
-                echo "\$fam_id\$'\\t'\$ind_id\$'\\t'\$pat_id\$'\\t'\$mat_id\$'\\t'\$sex\$'\\t'\$pheno" >> master.ped
+    python3 << 'PYTHON_SCRIPT'
+import sys
+
+# ---------------------------------------------------------------------------
+# Read PED into ordered dict keyed by (family_id, sample_id).
+# Last entry wins for duplicates (new batch overrides existing).
+# Comments (lines starting with #) are preserved in insertion order.
+# ---------------------------------------------------------------------------
+def read_ped(path):
+    entries  = {}   # (fam, ind) -> line
+    comments = []
+    with open(path) as f:
+        for line in f:
+            line = line.rstrip("\\n")
+            if not line.strip():
                 continue
-            fi
-            
-            # Create unique key for sample
-            local key="\${fam_id}_\${ind_id}"
-            
-            # Skip if already seen
-            if [ -n "\${seen_samples[\$key]:-}" ]; then
-                ((skipped++))
+            if line.startswith('#'):
+                comments.append(line)
                 continue
-            fi
-            
-            # Mark as seen and add to output
-            seen_samples[\$key]=1
-            printf "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" "\$fam_id" "\$ind_id" "\$pat_id" "\$mat_id" "\$sex" "\$pheno" >> master.ped
-            ((added++))
-            
-        done < "\$ped_file"
-        
-        echo "  \$source: Added \$added samples, skipped \$skipped duplicates"
-    }
-    
-    # Process existing PED first (if present)
-    if [ "${has_existing}" = "true" ]; then
-        echo ""
-        echo "Processing existing master PED..."
-        process_ped "${existing_ped}" "Existing"
-    fi
-    
-    # Process new PED entries
-    echo ""
-    echo "Processing new PED entries..."
-    process_ped "${new_ped}" "New"
-    
-    # Summary
-    echo ""
-    echo "=============================================="
-    echo "MERGE SUMMARY"
-    echo "=============================================="
-    total_samples=\$(grep -v '^#' master.ped | grep -v '^\$' | wc -l)
-    total_families=\$(grep -v '^#' master.ped | grep -v '^\$' | cut -f1 | sort -u | wc -l)
-    echo "Total samples: \$total_samples"
-    echo "Total families: \$total_families"
-    
-    # Show family breakdown
-    echo ""
-    echo "Samples per family:"
-    grep -v '^#' master.ped | grep -v '^\$' | cut -f1 | sort | uniq -c | sort -rn | head -20
-    
-    # Validate PED structure
-    echo ""
-    echo "Validating PED structure..."
-    invalid_lines=0
-    line_num=0
-    while IFS=\$'\\t' read -r fam_id ind_id pat_id mat_id sex pheno rest || [ -n "\$fam_id" ]; do
-        ((line_num++))
-        [ -z "\$fam_id" ] && continue
-        [[ "\$fam_id" == "#"* ]] && continue
-        
-        # Check for minimum columns
-        if [ -z "\$sex" ] || [ -z "\$pheno" ]; then
-            echo "  WARNING: Line \$line_num has missing columns"
-            ((invalid_lines++))
-        fi
-        
-        # Check sex values
-        if [[ ! "\$sex" =~ ^[012]\$ ]]; then
-            echo "  WARNING: Line \$line_num has invalid sex value: \$sex"
-            ((invalid_lines++))
-        fi
-        
-        # Check phenotype values  
-        if [[ ! "\$pheno" =~ ^[012]\$ ]]; then
-            echo "  WARNING: Line \$line_num has invalid phenotype value: \$pheno"
-            ((invalid_lines++))
-        fi
-        
-    done < master.ped
-    
-    if [ \$invalid_lines -eq 0 ]; then
-        echo "PED validation: PASSED"
-    else
-        echo "PED validation: \$invalid_lines warnings"
-    fi
-    
-    # Copy to persistent location if specified
-    if [ -n "${output_path}" ] && [ "${output_path}" != "null" ]; then
-        echo ""
-        echo "Copying master PED to persistent location: ${output_path}"
-        mkdir -p \$(dirname ${output_path})
-        cp master.ped ${output_path}
-        echo "Master PED saved to: ${output_path}"
-    fi
-    
-    echo ""
-    echo "Output file: master.ped"
-    ls -lh master.ped
-    
-    # Show first few entries
-    echo ""
-    echo "First 5 entries:"
-    head -5 master.ped
-    
-    cat <<-END_VERSIONS > versions.yml
-    "${task.process}":
-        bash: \$(bash --version | head -1 | sed 's/.*version //' | sed 's/ .*//')
-        total_samples: \$total_samples
-        total_families: \$total_families
-    END_VERSIONS
+            parts = line.split('\\t')
+            if len(parts) < 6:
+                print(f"WARNING: Skipping malformed line: {line!r}", file=sys.stderr)
+                continue
+            # Validate sex and phenotype
+            if parts[4] not in ('0','1','2'):
+                print(f"WARNING: Invalid sex value '{parts[4]}' for {parts[1]}", file=sys.stderr)
+            if parts[5] not in ('0','1','2'):
+                print(f"WARNING: Invalid phenotype '{parts[5]}' for {parts[1]}", file=sys.stderr)
+            key = (parts[0], parts[1])
+            entries[key] = '\\t'.join(parts[:6])
+    return comments, entries
+
+def write_ped(comments, entries, path):
+    with open(path, 'w') as f:
+        for c in comments:
+            f.write(c + '\\n')
+        for line in entries.values():
+            f.write(line + '\\n')
+
+print("=== MERGE PED ===")
+
+comments = []
+merged   = {}
+
+has_existing = ${has_existing ? 'True' : 'False'}
+
+# Process existing master first (so new batch can override)
+if has_existing:
+    c, e = read_ped('${existing_ped}')
+    comments.extend(c)
+    merged.update(e)
+    print(f"Existing master.ped: {len(e)} sample(s)")
+else:
+    print("No existing master.ped (first run)")
+
+# Process new batch (overrides duplicates)
+c_new, e_new = read_ped('${new_ped}')
+# Only add comments not already present
+for c in c_new:
+    if c not in comments:
+        comments.append(c)
+overlap = len(set(e_new) & set(merged))
+merged.update(e_new)
+print(f"New batch: {len(e_new)} sample(s), {overlap} updated existing entry/entries")
+
+write_ped(comments, merged, 'master.ped')
+
+total_samples  = len(merged)
+total_families = len({k[0] for k in merged})
+print(f"master.ped: {total_samples} sample(s) across {total_families} family/families")
+
+# Copy to persistent path if provided
+output_path = '${output_path}'
+if output_path and output_path != 'null':
+    import os, shutil
+    os.makedirs(os.path.dirname(output_path) or '.', exist_ok=True)
+    shutil.copy('master.ped', output_path)
+    print(f"Copied to persistent path: {output_path}")
+
+print("=== MERGE PED COMPLETE ===")
+
+# Write versions
+with open('versions.yml', 'w') as f:
+    import subprocess
+    py_ver = subprocess.check_output(['python3', '--version']).decode().strip().replace('Python ', '')
+    f.write(f'"${task.process}":\\n')
+    f.write(f'    python: {py_ver}\\n')
+    f.write(f'    total_samples: {total_samples}\\n')
+    f.write(f'    total_families: {total_families}\\n')
+
+PYTHON_SCRIPT
     """
-    
+
     stub:
     """
     echo -e "FAM001\\tSAMPLE001\\t0\\t0\\t1\\t2" > master.ped
-    
+
     cat <<-END_VERSIONS > versions.yml
     "${task.process}":
-        bash: stub
+        python: stub
     END_VERSIONS
     """
 }
