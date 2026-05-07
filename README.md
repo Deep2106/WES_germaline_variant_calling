@@ -72,7 +72,7 @@ Multi-lane samplesheets (multiple rows per sample) no longer produce duplicate P
 FastQC and Fastp outputs are named `sample.lane.*` to prevent MultiQC staging collisions when the same sample has multiple lanes. All per-lane reports are aggregated correctly in the MultiQC report.
 
 ### 4. DP=0 Genotype Masking (Multi-kit Cohort Support)
-A new `BCFTOOLS_SETGT` step runs after joint genotyping and converts `DP=0` genotypes from `0/0` to `./.` (missing). This prevents false de novo calls and allele frequency distortion in cohorts where samples were captured with different exome kits (e.g. SeqCap EZ v3 + Twist Combined). Samples with no reads in kit-exclusive regions are correctly treated as missing rather than homozygous reference. This step is a no-op when all samples share the same capture kit.
+A new `BCFTOOLS_SETGT` step runs after joint genotyping and converts `DP=0` genotypes from `0/0` to `./.` (missing). This prevents false de novo calls and allele frequency distortion in cohorts where samples were captured with different exome kits (preferably from same provider). Samples with no reads in kit-exclusive regions are correctly treated as missing rather than homozygous reference. This step has no effect when all samples share the same capture kit.
 
 ### 5. Merged BAM Persistent Storage
 Merged BAMs (multi-lane samples only) are published to a configurable persistent path (`params.merged_bam_path`) for downstream reuse without reprocessing.
